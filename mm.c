@@ -253,23 +253,33 @@ void *mm_realloc(void *ptr, size_t size)
     }
         
     void *oldptr = ptr;
-    void *newptr;
-    size_t copySize;
+    size_t originsize = GET_SIZE(HDRP(ptr)); // 기존 블록의 사이즈
+
+    if (originsize-DSIZE >= size) {
+        return ptr;
+    } 
+
+    size_t gapsize = size - (originsize - DSIZE); 
+    if (!GET_ALLOC(HDRP(NEXT_BLKP(ptr))) && GET_SIZE(HDRP(NEXT_BLKP(ptr)))>=gapsize)
+    {
+        mm_free(NEXT_BLKP(ptr));
+        size_t now_size = GET_SIZE(HDRP(ptr)) + GET_SIZE(HDRP(NEXT_BLKP(ptr)));
+        PUT(HDRP(ptr), PACK(now_size, 1));
+        PUT(FTRP(ptr), PACK(now_size, 1));
+        return ptr;
+    }
+    else{
+        ptr = mm_malloc(size);
+        if (ptr == NULL)
+        return NULL;
+
+        memcpy(ptr, oldptr, originsize);
+        mm_free(oldptr);
+    }
     
-    newptr = mm_malloc(size);
-    if (newptr == NULL)
-      return NULL;
+    
 
-    copySize = GET_SIZE(ptr) - DSIZE;
-
-    if (size < copySize)
-      copySize = size;
-      
-
-    memcpy(newptr, oldptr, copySize);
-    mm_free(oldptr);
-
-    return newptr;
+    return ptr;
 }
 
 
