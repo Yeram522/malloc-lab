@@ -254,22 +254,35 @@ void *mm_realloc(void *ptr, size_t size)
         
     void *oldptr = ptr;
     size_t originsize = GET_SIZE(HDRP(ptr)); // 기존 블록의 사이즈
+    size_t asize;
 
-    if (originsize-DSIZE >= size) {
+    /*Adjust block size to include overhead and alignment reqs. */
+    if (size <= DSIZE) // 정렬조건을 만족시키기 위해 8바이트로 해주고, header,footer 의 8바이트도 제공
+        asize = 3*DSIZE;
+    else //8바이트를 넘는 요청에 대해서 오버헤드 바이트를 추가하고, 인접 8의 배수로 반올림한다.
+        asize = DSIZE * ((size + (DSIZE) + (DSIZE - 1)) / DSIZE ) + DSIZE;
+
+    if (originsize > asize) {
+        // if(originsize - asize > 2*DSIZE)
+        // {   
+        //     place(ptr, asize); 
+        //     coalesce(NEXT_BLKP(ptr));
+        // }
+
         return ptr;
     } 
 
-    size_t gapsize = size - (originsize - DSIZE); 
+    size_t gapsize = asize - (originsize); 
     if (!GET_ALLOC(HDRP(NEXT_BLKP(ptr))) && GET_SIZE(HDRP(NEXT_BLKP(ptr)))>=gapsize)
     {
-        mm_free(NEXT_BLKP(ptr));
+        //mm_free(NEXT_BLKP(ptr));
         size_t now_size = GET_SIZE(HDRP(ptr)) + GET_SIZE(HDRP(NEXT_BLKP(ptr)));
         PUT(HDRP(ptr), PACK(now_size, 1));
         PUT(FTRP(ptr), PACK(now_size, 1));
         return ptr;
     }
     else{
-        ptr = mm_malloc(size);
+        ptr = mm_malloc(asize);
         if (ptr == NULL)
         return NULL;
 
