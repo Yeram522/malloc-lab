@@ -67,7 +67,9 @@ static void * extend_heap(size_t);
 static void * coalesce(void*);
 static void place(void *, size_t );
 static void *find_fit(size_t );
+static void *next_fit(size_t );
 static void* heap_listp;
+static void* avail_block_p; //for next fit
 
 /* 
  * mm_init - initialize the malloc package.
@@ -204,6 +206,9 @@ static void *find_fit(size_t asize){ /*가용 free 리스트를 처음부터 검
     
 }
 
+static void *next_fit(size_t asize){ // 이전 검색이 종료된 지점에서 검색.
+
+}
 
 static void place(void *bp, size_t asize){ //asize = 원래 새로 들어온 아이의 사이즈
     /*새로 할당된 아이의 footer 갱신*/
@@ -260,14 +265,14 @@ void *mm_realloc(void *ptr, size_t size)
     if (size <= DSIZE) // 정렬조건을 만족시키기 위해 8바이트로 해주고, header,footer 의 8바이트도 제공
         asize = 3*DSIZE;
     else //8바이트를 넘는 요청에 대해서 오버헤드 바이트를 추가하고, 인접 8의 배수로 반올림한다.
-        asize = DSIZE * ((size + (DSIZE) + (DSIZE - 1)) / DSIZE ) + DSIZE;
+        asize = DSIZE * ((size + (DSIZE) + (DSIZE - 1)) / DSIZE ) ;
 
     if (originsize > asize) {
-        // if(originsize - asize > 2*DSIZE)
-        // {   
-        //     place(ptr, asize); 
-        //     coalesce(NEXT_BLKP(ptr));
-        // }
+        if(originsize - asize > 2*DSIZE)
+        {   
+            place(ptr, asize); 
+            coalesce(NEXT_BLKP(ptr));
+        }
 
         return ptr;
     } 
@@ -275,12 +280,12 @@ void *mm_realloc(void *ptr, size_t size)
     size_t gapsize = asize - (originsize); 
     if (!GET_ALLOC(HDRP(NEXT_BLKP(ptr))) && GET_SIZE(HDRP(NEXT_BLKP(ptr)))>=gapsize)
     {
-        //mm_free(NEXT_BLKP(ptr));
+        mm_free(NEXT_BLKP(ptr));
         size_t now_size = GET_SIZE(HDRP(ptr)) + GET_SIZE(HDRP(NEXT_BLKP(ptr)));
         PUT(HDRP(ptr), PACK(now_size, 1));
         PUT(FTRP(ptr), PACK(now_size, 1));
         return ptr;
-    }
+    } 
     else{
         ptr = mm_malloc(asize);
         if (ptr == NULL)
